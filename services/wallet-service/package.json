@@ -1,0 +1,32 @@
+{
+  "name": "wallet-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"Add lint\"",
+    "test": "echo \"Add tests\""
+  },
+  "dependencies": {
+    "@redi/crossmint": "workspace:^",
+    "@redi/config": "workspace:^",
+    "@stellar/stellar-sdk": "^14.5.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "pino-http": "^11.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

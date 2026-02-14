@@ -9,16 +9,21 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@crossmint/client-sdk-react-ui": "^2.6.17",
+    "@redi/api-client": "workspace:^",
+    "@redi/config": "workspace:^",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4.1.13",
     "typescript": "^5"
   }
 }
