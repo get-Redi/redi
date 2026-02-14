@@ -16,5 +16,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"Add lint\"",
     "test": "echo \"Add tests\""
+  },
+  "dependencies": {
+    "@crossmint/wallets-sdk": "^0.19.0",
+    "@redi/config": "workspace:^"
   }
 }

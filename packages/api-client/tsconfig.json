@@ -5,13 +5,9 @@
     "declarationMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "types": ["node"]
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

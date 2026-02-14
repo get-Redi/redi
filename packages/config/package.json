@@ -16,5 +16,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"Add lint\"",
     "test": "echo \"Add tests\""
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.17"
   }
 }

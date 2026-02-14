@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Redi B2C App: Run Guide
 
-## Getting Started
+This guide explains how to run the `b2c` app with the wallet backend in local development.
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20.x
+- pnpm 9.x
+- A valid Crossmint API key
+
+Run all commands from:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd redi
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Frontend (b2c)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy the example file and then edit it:
 
-## Learn More
+```bash
+cp apps/b2c/.env.local.example apps/b2c/.env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+Update `apps/b2c/.env.local` with your values:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4103
+NEXT_PUBLIC_CROSSMINT_API_KEY=ck_staging_xxxxxxxxxxxxxxxxx
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Backend (wallet-service)
 
-## Deploy on Vercel
+Copy the example file and then edit it:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cp services/wallet-service/.env.example services/wallet-service/.env
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Update `services/wallet-service/.env` with your values:
+
+```env
+CROSSMINT_API_KEY=sk_staging_xxxxxxxxxxxxxxxxx
+WALLET_SERVICE_PORT=4103
+STELLAR_NETWORK=testnet
+STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+```
+
+### Install and Build
+
+```bash
+pnpm install
+pnpm --filter @redi/config build
+pnpm --filter @redi/crossmint build
+pnpm --filter @redi/api-client build
+```
+
+### Run in Separate Terminals
+
+Terminal 1: wallet backend
+
+```bash
+cd redi
+pnpm --filter wallet-service dev
+```
+
+Terminal 2: b2c frontend
+
+```bash
+cd redi
+pnpm --filter b2c dev
+```
+
+### Verify
+
+- Backend health:
+
+```bash
+curl http://localhost:4103/health
+```
+
+- Frontend:
+  - Open the URL printed by Next.js (`http://localhost:3000` by default).
