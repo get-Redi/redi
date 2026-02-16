@@ -23,3 +23,21 @@ logs
 .DS_Store
 .vscode
 .idea
+
+# Rust / Soroban (NUEVO)
+target/
+Cargo.lock
+**/*.rs.bk
+*.wasm
+*.so
+
+# Soroban generated files (NUEVO)
+.soroban/
+.soroban-example/
+
+# Python (si usas scripts) (NUEVO)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
