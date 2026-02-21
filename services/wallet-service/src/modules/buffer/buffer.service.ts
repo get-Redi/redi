@@ -87,7 +87,8 @@ export class BufferService {
     }
 
     const contract = new Contract(bufferContractId);
-    const account = await this.server.getAccount(userAddress);
+    const source = userAddress.startsWith("C") ? this.adminKeypair.publicKey() : userAddress;
+    const account = await this.server.getAccount(source);
 
     const transaction = new TransactionBuilder(account, {
       fee: BASE_FEE,
@@ -115,7 +116,8 @@ export class BufferService {
     }
 
     const contract = new Contract(bufferContractId);
-    const account = await this.server.getAccount(userAddress);
+    const source = userAddress.startsWith("C") ? this.adminKeypair.publicKey() : userAddress;
+    const account = await this.server.getAccount(source);
 
     const transaction = new TransactionBuilder(account, {
       fee: BASE_FEE,

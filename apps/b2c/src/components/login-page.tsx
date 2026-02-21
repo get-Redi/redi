@@ -8,9 +8,8 @@ import { provisionBufferWallet } from "@redi/api-client";
 export function LoginPage() {
   const router = useRouter();
   const { status: authStatus, user, logout } = useAuth();
-  const { wallet, status: walletStatus } = useWallet();
+  const { wallet } = useWallet();
   const isProvisioning = useRef(false);
-  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,38 +22,28 @@ export function LoginPage() {
       isProvisioning.current = true;
       try {
         const serverWallet = await provisionBufferWallet(email);
-        const currentWallet = wallet?.address ?? serverWallet.address;
+        const walletAddress = wallet?.address ?? serverWallet.address;
 
         localStorage.setItem(
           "redi_user",
-          JSON.stringify({
-            email,
-            walletAddress: currentWallet,
-            loginDate: new Date().toISOString(),
-          }),
+          JSON.stringify({ email, walletAddress, loginDate: new Date().toISOString() }),
         );
 
         router.push("/wallet");
       } catch {
         setError("Unable to initialize wallet session");
-      } finally {
         isProvisioning.current = false;
       }
     };
 
     void run();
-  }, [authStatus, user?.email, wallet?.address, walletStatus, router]);
+  }, [authStatus, user?.email, wallet?.address, router]);
 
   const handleSignOut = async () => {
-    setResetting(true);
+    isProvisioning.current = false;
     setError(null);
-    try {
-      await logout();
-      localStorage.removeItem("redi_user");
-      router.replace("/");
-    } finally {
-      setResetting(false);
-    }
+    localStorage.removeItem("redi_user");
+    await logout();
   };
 
   if (authStatus === "logged-in") {
@@ -66,15 +55,16 @@ export function LoginPage() {
             <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
               Wallet bootstrap
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Initializing wallet session</h1>
-            <p className="text-sm text-slate-600">{error ? error : "Please wait while we prepare your wallet."}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+              Initializing wallet session
+            </h1>
+            <p className="text-sm text-slate-600">Please wait while we prepare your wallet.</p>
             <button
               type="button"
               onClick={() => void handleSignOut()}
-              disabled={resetting}
-              className="inline-flex w-fit items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex w-fit items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              {resetting ? "Signing out..." : "Sign out"}
+              Sign out
             </button>
           </div>
         </section>

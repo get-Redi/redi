@@ -1,4 +1,4 @@
-import { Keypair, Networks, Transaction, xdr, StrKey } from "@stellar/stellar-sdk";
+import { rpc, Keypair, Networks, Transaction, xdr, StrKey } from "@stellar/stellar-sdk";
 import { SupabaseService } from "../supabase/supabase.service.js";
 import { CrossmintService } from "../crossmint/crossmint.service.js";
 import { DeFindexService } from "../defindex/defindex.service.js";
@@ -23,6 +23,7 @@ export class OnboardingService {
   private readonly adminKeypair: Keypair;
   private readonly networkPassphrase: string;
   private readonly horizonUrl: string;
+  private readonly sorobanRpc: rpc.Server;
 
   constructor(
     private readonly supabase: SupabaseService,
@@ -40,13 +41,19 @@ export class OnboardingService {
     this.networkPassphrase = network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
     this.horizonUrl =
       network === "mainnet" ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org";
+
+    const rpcUrl =
+      process.env.STELLAR_SOROBAN_RPC_URL ??
+      (network === "mainnet"
+        ? "https://mainnet.stellar.validationcloud.io/v1/XCeZqFTKymREBkxOH5ISRGEwFr5sXQ9Ye9sJU2FZ8q4="
+        : "https://soroban-testnet.stellar.org");
+    this.sorobanRpc = new rpc.Server(rpcUrl);
   }
 
   async onboardUser(userId: string, email: string): Promise<OnboardingResult> {
     console.info(`[OnboardingService] Starting onboarding for user ${userId}`);
 
     try {
-      // upsert: crea el perfil si no existe, lo devuelve si ya existe
       const user = await this.supabase.upsertUser(userId, email);
 
       if (user.buffer_onboarding_status === "READY") {
@@ -82,11 +89,10 @@ export class OnboardingService {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       console.error(`[OnboardingService] Onboarding failed for user ${userId}: ${message}`);
-      // Solo actualizar estado si el usuario ya existe en DB
       try {
         await this.supabase.updateUserOnboardingStatus(userId, "FAILED");
       } catch {
-        // ignorar si falla el update de estado
+        // ignore status update failure
       }
       throw error;
     }
@@ -136,7 +142,22 @@ export class OnboardingService {
 
     console.info(`[OnboardingService] Vault tx confirmed: ${result.hash}`);
 
-    const vaultAddress = this.extractVaultAddressFromResultXdr(result.result_xdr);
+    let rpcResult = await this.sorobanRpc.getTransaction(result.hash);
+    for (
+      let i = 0;
+      i < 10 && rpcResult.status === rpc.Api.GetTransactionStatus.NOT_FOUND;
+      i++
+    ) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 2_000));
+      rpcResult = await this.sorobanRpc.getTransaction(result.hash);
+    }
+
+    if (rpcResult.status !== rpc.Api.GetTransactionStatus.SUCCESS) {
+      throw new Error(`[OnboardingService] Vault tx RPC status: ${rpcResult.status}`);
+    }
+
+    const vaultAddress =
+      vaultResponse.predictedVaultAddress ?? this.extractVaultAddress(rpcResult.returnValue);
 
     const confirmed = await this.defindex.waitForVaultConfirmation(vaultAddress);
     if (!confirmed) {
@@ -152,78 +173,32 @@ export class OnboardingService {
     console.info(`[OnboardingService] Vault persisted: ${vaultAddress}`);
   }
 
-  private extractVaultAddressFromResultXdr(resultXdr: string): string {
-    let txResult: xdr.TransactionResult;
-
-    try {
-      txResult = xdr.TransactionResult.fromXDR(resultXdr, "base64");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "unknown";
-      throw new Error(`[OnboardingService] Failed to deserialize result_xdr: ${msg}`);
+  private extractVaultAddress(returnValue: xdr.ScVal | undefined): string {
+    if (!returnValue) {
+      throw new Error("[OnboardingService] No return value in Soroban RPC response");
     }
 
-    const txResultBody = txResult.result();
-    const innerResults = txResultBody.results();
-
-    if (!innerResults || innerResults.length === 0) {
-      throw new Error("[OnboardingService] result_xdr contains no operations");
+    if (returnValue.switch().name !== "scvAddress") {
+      throw new Error(
+        `[OnboardingService] Unexpected return value type: ${returnValue.switch().name}`,
+      );
     }
 
-    for (const opResult of innerResults) {
-      const opInner = opResult.tr();
-      if (!opInner) continue;
+    const scAddress = returnValue.address();
 
-      let invokeResult: xdr.InvokeHostFunctionResult;
-      try {
-        invokeResult = opInner.invokeHostFunctionResult();
-      } catch {
-        continue;
-      }
-
-      let returnValBuffer: Buffer;
-      try {
-        returnValBuffer = invokeResult.success() as unknown as Buffer;
-      } catch {
-        throw new Error("[OnboardingService] invokeHostFunction was not successful per XDR");
-      }
-
-      let returnVal: xdr.ScVal;
-      try {
-        returnVal = xdr.ScVal.fromXDR(returnValBuffer);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "unknown";
-        throw new Error(
-          `[OnboardingService] Failed to deserialize ScVal from return value: ${msg}`,
-        );
-      }
-
-      if (returnVal.switch().name !== "scvAddress") {
-        throw new Error(
-          `[OnboardingService] Unexpected return value type: ${returnVal.switch().name}. Expected scvAddress`,
-        );
-      }
-
-      const scAddress = returnVal.address();
-      const addressType = scAddress.switch().name;
-
-      if (addressType !== "scAddressTypeContract") {
-        throw new Error(`[OnboardingService] ScAddress is not of type CONTRACT: ${addressType}`);
-      }
-
-      const contractHash = Buffer.from(scAddress.contractId().toString(), "hex");
-      const vaultAddress = StrKey.encodeContract(contractHash);
-
-      if (!StrKey.isValidContract(vaultAddress)) {
-        throw new Error(`[OnboardingService] Extracted address is invalid: ${vaultAddress}`);
-      }
-
-      console.info(`[OnboardingService] Vault address extracted from XDR: ${vaultAddress}`);
-      return vaultAddress;
+    if (scAddress.switch().name !== "scAddressTypeContract") {
+      throw new Error(
+        `[OnboardingService] ScAddress is not a contract: ${scAddress.switch().name}`,
+      );
     }
 
-    throw new Error(
-      "[OnboardingService] No invokeHostFunctionResult with ScAddress found in XDR. " +
-        `Verify tx at: https://stellar.expert/explorer/testnet/tx/`,
-    );
+    const vaultAddress = StrKey.encodeContract(scAddress.contractId() as unknown as Buffer);
+
+    if (!StrKey.isValidContract(vaultAddress)) {
+      throw new Error(`[OnboardingService] Extracted vault address is invalid: ${vaultAddress}`);
+    }
+
+    console.info(`[OnboardingService] Vault address extracted from meta XDR: ${vaultAddress}`);
+    return vaultAddress;
   }
 }

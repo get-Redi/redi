@@ -79,6 +79,23 @@ export class CrossmintService {
     };
   }
 
+  async getWalletBalances(email: string): Promise<Record<string, unknown>> {
+    const walletLocator = encodeURIComponent(`email:${email}:stellar`);
+
+    const response = await fetch(
+      `${this.baseUrl}/api/2025-06-09/wallets/${walletLocator}/balances?tokens=xlm,usdc`,
+      { headers: this.headers },
+    );
+
+    const data = (await response.json()) as Record<string, unknown>;
+
+    if (!response.ok) {
+      throw new Error(`[CrossmintService] getWalletBalances failed: ${JSON.stringify(data)}`);
+    }
+
+    return data;
+  }
+
   async signAndSubmitTransaction(
     request: SignTransactionRequest,
   ): Promise<SignTransactionResponse> {

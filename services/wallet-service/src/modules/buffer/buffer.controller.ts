@@ -44,12 +44,13 @@ export class BufferController {
 
       const balance = await this.bufferService.getBalance(user.stellar_address as string);
       res.json({ userId, balance });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid request", details: error.flatten() });
         return;
       }
-      console.error(`[BufferController] getBalance failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[BufferController] getBalance failed: ${message}`);
       res.status(500).json({ error: "Failed to get buffer balance" });
     }
   }
@@ -77,12 +78,13 @@ export class BufferController {
       });
 
       res.json({ transactionXDR, txId });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid request", details: error.flatten() });
         return;
       }
-      console.error(`[BufferController] prepareDeposit failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[BufferController] prepareDeposit failed: ${message}`);
       res.status(500).json({ error: "Failed to prepare deposit transaction" });
     }
   }
@@ -103,12 +105,13 @@ export class BufferController {
       });
 
       res.json({ transactionHash: result.transactionHash, txId });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid request", details: error.flatten() });
         return;
       }
-      console.error(`[BufferController] submitDeposit failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[BufferController] submitDeposit failed: ${message}`);
       res.status(500).json({ error: "Failed to submit deposit" });
     }
   }
@@ -136,12 +139,13 @@ export class BufferController {
       });
 
       res.json({ transactionXDR, txId });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid request", details: error.flatten() });
         return;
       }
-      console.error(`[BufferController] prepareWithdraw failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[BufferController] prepareWithdraw failed: ${message}`);
       res.status(500).json({ error: "Failed to prepare withdraw transaction" });
     }
   }
@@ -162,12 +166,13 @@ export class BufferController {
       });
 
       res.json({ transactionHash: result.transactionHash, txId });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid request", details: error.flatten() });
         return;
       }
-      console.error(`[BufferController] submitWithdraw failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[BufferController] submitWithdraw failed: ${message}`);
       res.status(500).json({ error: "Failed to submit withdraw" });
     }
   }
