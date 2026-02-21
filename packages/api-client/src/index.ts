@@ -17,8 +17,28 @@ const walletBalanceSchema = z.object({
   customTokens: z.array(z.unknown()),
 });
 
+const onboardingSchema = z.object({
+  userId: z.string(),
+  stellarAddress: z.string().nullish(),
+  vaultAddress: z.string().nullish(),
+  status: z.string(),
+});
+
+const bufferBalanceSchema = z.object({
+  userId: z.string(),
+  balance: z.object({
+    availableShares: z.string(),
+    protectedShares: z.string(),
+    totalDeposited: z.string(),
+    lastDepositTs: z.number(),
+    version: z.number(),
+  }),
+});
+
 export type WalletResponse = z.infer<typeof walletSchema>;
 export type WalletBalanceResponse = z.infer<typeof walletBalanceSchema>;
+export type OnboardingResponse = z.infer<typeof onboardingSchema>;
+export type BufferBalanceResponse = z.infer<typeof bufferBalanceSchema>;
 
 function getBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4103";
@@ -45,4 +65,12 @@ export function provisionBufferWallet(email: string) {
 
 export function getBufferWalletState(email: string) {
   return postJson("/api/buffer/wallet/state", { email }, walletBalanceSchema);
+}
+
+export function onboardUser(userId: string, email: string) {
+  return postJson("/api/buffer/onboarding", { userId, email }, onboardingSchema);
+}
+
+export function getBufferBalance(userId: string) {
+  return postJson("/api/buffer/balance", { userId }, bufferBalanceSchema);
 }

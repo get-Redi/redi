@@ -13,11 +13,22 @@ const env = getPublicEnv({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
 });
 
+const sessionStorageProvider = {
+  get: async (key: string) => sessionStorage.getItem(key) ?? undefined,
+  set: async (key: string, value: string) => {
+    sessionStorage.setItem(key, value);
+  },
+  remove: async (key: string) => {
+    sessionStorage.removeItem(key);
+  },
+};
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <CrossmintProvider apiKey={env.NEXT_PUBLIC_CROSSMINT_API_KEY}>
       <CrossmintAuthProvider
         loginMethods={["email"]}
+        storageProvider={sessionStorageProvider}
         authModalTitle="Sign in to Redi"
         termsOfServiceText={
           <p>

@@ -24,13 +24,13 @@ export class BufferService {
   private readonly adminKeypair: Keypair;
 
   constructor() {
-    const rpcUrl = process.env.STELLAR_RPC_URL;
+    const rpcUrl = process.env.STELLAR_SOROBAN_RPC_URL;
     const adminSecret = process.env.ADMIN_STELLAR_SECRET;
     const network = process.env.STELLAR_NETWORK ?? "testnet";
 
     if (!rpcUrl || !adminSecret) {
       throw new Error(
-        "[BufferService] Required env vars: STELLAR_RPC_URL, ADMIN_STELLAR_SECRET",
+        "[BufferService] Required env vars: STELLAR_SOROBAN_RPC_URL, ADMIN_STELLAR_SECRET",
       );
     }
 
@@ -87,7 +87,8 @@ export class BufferService {
     }
 
     const contract = new Contract(bufferContractId);
-    const account = await this.server.getAccount(userAddress);
+    const source = userAddress.startsWith("C") ? this.adminKeypair.publicKey() : userAddress;
+    const account = await this.server.getAccount(source);
 
     const transaction = new TransactionBuilder(account, {
       fee: BASE_FEE,
@@ -115,7 +116,8 @@ export class BufferService {
     }
 
     const contract = new Contract(bufferContractId);
-    const account = await this.server.getAccount(userAddress);
+    const source = userAddress.startsWith("C") ? this.adminKeypair.publicKey() : userAddress;
+    const account = await this.server.getAccount(source);
 
     const transaction = new TransactionBuilder(account, {
       fee: BASE_FEE,

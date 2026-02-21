@@ -1,28 +1,45 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// dotenv MUST load before any service instantiation
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../.env"), override: true });
+
+// All service/route imports happen AFTER dotenv
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import { getServerEnv } from "@redi/config";
-import { SupabaseService } from "./modules/supabase/supabase.service.js"; // ← import de la CLASE
-import bufferWalletRoutes from "./routes/buffer-wallet.js";
+
+import { SupabaseService } from "./modules/supabase/supabase.service.js";
+import { CrossmintService } from "./modules/crossmint/crossmint.service.js";
+import { DeFindexService } from "./modules/defindex/defindex.service.js";
+import { BufferService } from "./modules/buffer/buffer.service.js";
+import { OnboardingService } from "./modules/onboarding/onboarding.service.js";
+import { BufferController } from "./modules/buffer/buffer.controller.js";
+import { OnboardingController } from "./modules/onboarding/onboarding.controller.js";
+import { createBufferWalletRouter } from "./routes/buffer-wallet.js";
 import stellarWalletRoutes from "./routes/stellar-wallet.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
-dotenv.config({ path: path.resolve(__dirname, "../.env"), override: true });
-
-export const supabaseService = new SupabaseService();
+// Composition root — single place where all services are instantiated
+const supabaseService = new SupabaseService();
+const crossmintService = new CrossmintService();
+const defindexService = new DeFindexService();
+const bufferService = new BufferService();
+const onboardingService = new OnboardingService(supabaseService, crossmintService, defindexService);
+const bufferController = new BufferController(bufferService, supabaseService, crossmintService);
+const onboardingController = new OnboardingController(onboardingService, supabaseService);
 
 const env = getServerEnv();
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: true, credentials: false }));
+app.use(cors({ origin: "http://localhost:3000", credentials: false }));
 app.use(express.json({ limit: "1mb" }));
 app.use(pinoHttp());
 
@@ -34,7 +51,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.use("/api/buffer", bufferWalletRoutes);
+app.use("/api/buffer", createBufferWalletRouter(bufferController, onboardingController, crossmintService));
 app.use("/api/buffer", stellarWalletRoutes);
 
 app.listen(env.WALLET_SERVICE_PORT, () => {
