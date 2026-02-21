@@ -4,6 +4,7 @@ export interface BufferOnboardingData {
   stellar_address?: string;
   crossmint_wallet_id?: string;
   defindex_vault_address?: string;
+  buffer_contract_address?: string;
 }
 
 export interface BufferTransactionInput {
@@ -52,6 +53,38 @@ export class SupabaseService {
     return this.client;
   }
 
+  // Crea el perfil si no existe, lo devuelve si ya existe
+  // Separa upsert de select para evitar el error "Cannot coerce to single JSON object"
+  // que ocurre cuando ignoreDuplicates:true devuelve 0 filas y .single() falla
+  async upsertUser(userId: string, email: string): Promise<Record<string, unknown>> {
+    const { error } = await this.client
+      .from("profiles")
+      .upsert(
+        { id: userId, email, buffer_onboarding_status: "PENDING" },
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+
+    if (error) {
+      throw new Error(`[SupabaseService] upsertUser failed for ${userId}: ${error.message}`);
+    }
+
+    return this.getUser(userId);
+  }
+
+  async getUser(userId: string): Promise<Record<string, unknown>> {
+    const { data, error } = await this.client
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      throw new Error(`[SupabaseService] getUser failed for ${userId}: ${error.message}`);
+    }
+
+    return data as Record<string, unknown>;
+  }
+
   async updateUserOnboardingStatus(
     userId: string,
     status: string,
@@ -68,20 +101,6 @@ export class SupabaseService {
     if (error) {
       throw new Error(`[SupabaseService] updateUserOnboardingStatus failed: ${error.message}`);
     }
-  }
-
-  async getUser(userId: string): Promise<Record<string, unknown>> {
-    const { data, error } = await this.client
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      throw new Error(`[SupabaseService] getUser failed for ${userId}: ${error.message}`);
-    }
-
-    return data as Record<string, unknown>;
   }
 
   async createBufferTransaction(transaction: BufferTransactionInput): Promise<string> {

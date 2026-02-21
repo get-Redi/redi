@@ -46,7 +46,8 @@ export class OnboardingService {
     console.info(`[OnboardingService] Starting onboarding for user ${userId}`);
 
     try {
-      const user = await this.supabase.getUser(userId);
+      // upsert: crea el perfil si no existe, lo devuelve si ya existe
+      const user = await this.supabase.upsertUser(userId, email);
 
       if (user.buffer_onboarding_status === "READY") {
         console.info(`[OnboardingService] User ${userId} already onboarded`);
@@ -78,9 +79,15 @@ export class OnboardingService {
         vaultAddress: finalUser.defindex_vault_address as string,
         status: finalUser.buffer_onboarding_status as string,
       };
-    } catch (error: any) {
-      console.error(`[OnboardingService] Onboarding failed for user ${userId}: ${error.message}`);
-      await this.supabase.updateUserOnboardingStatus(userId, "FAILED");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[OnboardingService] Onboarding failed for user ${userId}: ${message}`);
+      // Solo actualizar estado si el usuario ya existe en DB
+      try {
+        await this.supabase.updateUserOnboardingStatus(userId, "FAILED");
+      } catch {
+        // ignorar si falla el update de estado
+      }
       throw error;
     }
   }
@@ -150,8 +157,9 @@ export class OnboardingService {
 
     try {
       txResult = xdr.TransactionResult.fromXDR(resultXdr, "base64");
-    } catch (e: any) {
-      throw new Error(`[OnboardingService] Failed to deserialize result_xdr: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      throw new Error(`[OnboardingService] Failed to deserialize result_xdr: ${msg}`);
     }
 
     const txResultBody = txResult.result();
@@ -182,9 +190,10 @@ export class OnboardingService {
       let returnVal: xdr.ScVal;
       try {
         returnVal = xdr.ScVal.fromXDR(returnValBuffer);
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "unknown";
         throw new Error(
-          `[OnboardingService] Failed to deserialize ScVal from return value: ${e.message}`,
+          `[OnboardingService] Failed to deserialize ScVal from return value: ${msg}`,
         );
       }
 

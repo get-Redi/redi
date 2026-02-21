@@ -20,7 +20,7 @@ const withdrawSchema = z.object({
 
 const submitSchema = z.object({
   userId: z.string().uuid(),
-  email: z.string().email(),
+  walletLocator: z.string().min(1),
   transactionXDR: z.string().min(1),
   txId: z.string().uuid(),
 });
@@ -89,10 +89,10 @@ export class BufferController {
 
   async submitDeposit(req: Request, res: Response): Promise<void> {
     try {
-      const { userId, email, transactionXDR, txId } = submitSchema.parse(req.body);
+      const { userId, walletLocator, transactionXDR, txId } = submitSchema.parse(req.body);
 
       const result = await this.crossmintService.signAndSubmitTransaction({
-        email,
+        walletLocator,
         transactionXDR,
       });
 
@@ -148,10 +148,10 @@ export class BufferController {
 
   async submitWithdraw(req: Request, res: Response): Promise<void> {
     try {
-      const { userId, email, transactionXDR, txId } = submitSchema.parse(req.body);
+      const { userId, walletLocator, transactionXDR, txId } = submitSchema.parse(req.body);
 
       const result = await this.crossmintService.signAndSubmitTransaction({
-        email,
+        walletLocator,
         transactionXDR,
       });
 
