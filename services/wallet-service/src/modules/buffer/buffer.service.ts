@@ -24,13 +24,13 @@ export class BufferService {
   private readonly adminKeypair: Keypair;
 
   constructor() {
-    const rpcUrl = process.env.STELLAR_RPC_URL;
+    const rpcUrl = process.env.STELLAR_SOROBAN_RPC_URL;
     const adminSecret = process.env.ADMIN_STELLAR_SECRET;
     const network = process.env.STELLAR_NETWORK ?? "testnet";
 
     if (!rpcUrl || !adminSecret) {
       throw new Error(
-        "[BufferService] Required env vars: STELLAR_RPC_URL, ADMIN_STELLAR_SECRET",
+        "[BufferService] Required env vars: STELLAR_SOROBAN_RPC_URL, ADMIN_STELLAR_SECRET",
       );
     }
 
@@ -39,11 +39,9 @@ export class BufferService {
     this.adminKeypair = Keypair.fromSecret(adminSecret);
   }
 
-  async getBalance(userAddress: string): Promise<BufferBalance> {
-    const bufferContractId = process.env.BUFFER_CONTRACT_ID;
-
+  async getBalance(bufferContractId: string, userAddress: string): Promise<BufferBalance> {
     if (!bufferContractId) {
-      throw new Error("[BufferService] Required env var: BUFFER_CONTRACT_ID");
+      throw new Error("[BufferService] Missing buffer contract id");
     }
 
     const contract = new Contract(bufferContractId);
@@ -79,15 +77,18 @@ export class BufferService {
     };
   }
 
-  async buildDepositTransaction(userAddress: string, amountStroops: string): Promise<string> {
-    const bufferContractId = process.env.BUFFER_CONTRACT_ID;
-
+  async buildDepositTransaction(
+    bufferContractId: string,
+    userAddress: string,
+    amountStroops: string,
+  ): Promise<string> {
     if (!bufferContractId) {
-      throw new Error("[BufferService] Required env var: BUFFER_CONTRACT_ID");
+      throw new Error("[BufferService] Missing buffer contract id");
     }
 
     const contract = new Contract(bufferContractId);
-    const account = await this.server.getAccount(userAddress);
+    const source = userAddress.startsWith("C") ? this.adminKeypair.publicKey() : userAddress;
+    const account = await this.server.getAccount(source);
 
     const transaction = new TransactionBuilder(account, {
       fee: BASE_FEE,
@@ -107,15 +108,18 @@ export class BufferService {
     return prepared.toXDR();
   }
 
-  async buildWithdrawTransaction(userAddress: string, sharesAmount: string): Promise<string> {
-    const bufferContractId = process.env.BUFFER_CONTRACT_ID;
-
+  async buildWithdrawTransaction(
+    bufferContractId: string,
+    userAddress: string,
+    sharesAmount: string,
+  ): Promise<string> {
     if (!bufferContractId) {
-      throw new Error("[BufferService] Required env var: BUFFER_CONTRACT_ID");
+      throw new Error("[BufferService] Missing buffer contract id");
     }
 
     const contract = new Contract(bufferContractId);
-    const account = await this.server.getAccount(userAddress);
+    const source = userAddress.startsWith("C") ? this.adminKeypair.publicKey() : userAddress;
+    const account = await this.server.getAccount(source);
 
     const transaction = new TransactionBuilder(account, {
       fee: BASE_FEE,

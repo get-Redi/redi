@@ -1,5 +1,3 @@
-import axios, { AxiosInstance } from "axios";
-
 export interface CreateVaultRequest {
   userAddress: string;
   assetAddress?: string;
@@ -7,31 +5,35 @@ export interface CreateVaultRequest {
 }
 
 export interface CreateVaultResponse {
-  vaultContractId: string;
   transactionXDR: string;
+  predictedVaultAddress?: string;
 }
 
 export class DeFindexService {
-  private readonly client: AxiosInstance;
+  private readonly apiUrl: string;
   private readonly network: string;
+  private readonly adminAddress: string;
+  private readonly headers: Record<string, string>;
 
   constructor() {
     const apiUrl = process.env.DEFINDEX_API_URL;
     const apiKey = process.env.DEFINDEX_API_KEY;
+    const adminAddress = process.env.ADMIN_STELLAR_ADDRESS;
+
     this.network = process.env.STELLAR_NETWORK ?? "testnet";
 
-    if (!apiUrl || !apiKey) {
-      throw new Error("[DeFindexService] Required env vars: DEFINDEX_API_URL, DEFINDEX_API_KEY");
+    if (!apiUrl || !apiKey || !adminAddress) {
+      throw new Error(
+        "[DeFindexService] Required env vars: DEFINDEX_API_URL, DEFINDEX_API_KEY, ADMIN_STELLAR_ADDRESS",
+      );
     }
 
-    this.client = axios.create({
-      baseURL: apiUrl,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      timeout: 60_000,
-    });
+    this.apiUrl = apiUrl;
+    this.adminAddress = adminAddress;
+    this.headers = {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
   }
 
   async createVaultForUser(request: CreateVaultRequest): Promise<CreateVaultResponse> {
@@ -50,18 +52,18 @@ export class DeFindexService {
         : "USDC_blend_strategy";
 
     const payload = {
-      caller: request.userAddress,
+      caller: this.adminAddress,
       roles: {
-        "0": request.userAddress,
-        "1": request.userAddress,
+        "0": this.adminAddress,
+        "1": this.adminAddress,
         "2": request.userAddress,
-        "3": request.userAddress,
+        "3": this.adminAddress,
       },
       vault_fee_bps: 25,
       upgradable: true,
       name_symbol: {
-        name: `User Vault ${request.userAddress.slice(0, 8)}`,
-        symbol: "UVLT",
+        name: "REDI Buffer Vault",
+        symbol: "RVLT",
       },
       assets: [
         {
@@ -77,24 +79,36 @@ export class DeFindexService {
       ],
     };
 
+    let response: Response;
     try {
-      const response = await this.client.post(
-        `/factory/create-vault?network=${this.network}`,
-        payload,
+      response = await fetch(
+        `${this.apiUrl}/factory/create-vault?network=${this.network}`,
+        {
+          method: "POST",
+          headers: this.headers,
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(60_000),
+        },
       );
-
-      console.info(
-        `[DeFindexService] Vault creation initiated for ${request.userAddress}: ${response.data.simulation_result}`,
-      );
-
-      return {
-        vaultContractId: "", // resolved in onboarding after Horizon submit
-        transactionXDR: response.data.xdr,
-      };
-    } catch (error: any) {
-      const msg = error?.response?.data ?? error?.message ?? "unknown error";
-      throw new Error(`[DeFindexService] createVaultForUser failed: ${JSON.stringify(msg)}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`[DeFindexService] createVaultForUser network error: ${message}`);
     }
+
+    const data = (await response.json()) as Record<string, unknown>;
+
+    if (!response.ok) {
+      throw new Error(`[DeFindexService] createVaultForUser failed: ${JSON.stringify(data)}`);
+    }
+
+    console.info(
+      `[DeFindexService] Vault creation initiated for ${request.userAddress}`,
+    );
+
+    return {
+      transactionXDR: data.xdr as string,
+      predictedVaultAddress: data.predictedVaultAddress as string | undefined,
+    };
   }
 
   async waitForVaultConfirmation(
@@ -104,11 +118,17 @@ export class DeFindexService {
   ): Promise<boolean> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const response = await this.client.get(`/vault/${vaultAddress}?network=${this.network}`);
+        const response = await fetch(
+          `${this.apiUrl}/vault/${vaultAddress}?network=${this.network}`,
+          { headers: this.headers, signal: AbortSignal.timeout(15_000) },
+        );
 
-        if (response.data?.name) {
-          console.info(`[DeFindexService] Vault confirmed: ${vaultAddress}`);
-          return true;
+        if (response.ok) {
+          const data = (await response.json()) as Record<string, unknown>;
+          if (data?.name) {
+            console.info(`[DeFindexService] Vault confirmed: ${vaultAddress}`);
+            return true;
+          }
         }
       } catch {
         console.debug(

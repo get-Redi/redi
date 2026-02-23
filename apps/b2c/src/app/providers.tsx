@@ -13,31 +13,42 @@ const env = getPublicEnv({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
 });
 
+const sessionStorageProvider = {
+  get: async (key: string) => sessionStorage.getItem(key) ?? undefined,
+  set: async (key: string, value: string) => {
+    sessionStorage.setItem(key, value);
+  },
+  remove: async (key: string) => {
+    sessionStorage.removeItem(key);
+  },
+};
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <CrossmintProvider apiKey={env.NEXT_PUBLIC_CROSSMINT_API_KEY}>
       <CrossmintAuthProvider
         loginMethods={["email"]}
-        authModalTitle="Sign in to Redi"
+        storageProvider={sessionStorageProvider}
+        authModalTitle="Accede a REDI"
         termsOfServiceText={
           <p>
-            By continuing, you agree to our <a href="/terms">Terms of Service</a> and{" "}
-            <a href="/privacy">Privacy Policy</a>.
+            Al continuar, aceptas nuestros <a href="/terms">Términos</a> y{" "}
+            <a href="/privacy">Política de Privacidad</a>.
           </p>
         }
         appearance={{
           spacingUnit: "8px",
           borderRadius: "12px",
           colors: {
-            inputBackground: "#fffdf9",
-            buttonBackground: "#fffaf2",
-            border: "#835911",
-            background: "#FAF5EC",
-            textPrimary: "#5f2c1b",
-            textSecondary: "#835911",
-            textLink: "#1400cb",
-            danger: "#ff3333",
-            accent: "#602C1B",
+            inputBackground: "#FFFFFF",
+            buttonBackground: "#fccd04",
+            border: "#0D0D0D",
+            background: "#f5e6cc",
+            textPrimary: "#0D0D0D",
+            textSecondary: "#0D0D0D",
+            textLink: "#a64ac9",
+            danger: "#ffb48f",
+            accent: "#17e9e0",
           },
         }}
       >
