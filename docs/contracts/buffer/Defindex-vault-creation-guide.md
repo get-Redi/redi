@@ -502,6 +502,14 @@ stellar contract invoke \
 
 ### Step 5: Verify Investment
 
+**View full vault response**
+
+```bash
+curl "https://api.defindex.io/vault/$DEFINDEX_VAULT_ADDRESS?network=testnet" \
+  -H "Authorization: Bearer $DEFINDEX_API_KEY"
+```
+
+**Optional: with filter** 
 ```bash
 curl "https://api.defindex.io/vault/$DEFINDEX_VAULT_ADDRESS?network=testnet" \
   -H "Authorization: Bearer $DEFINDEX_API_KEY" | jq '.totalManagedFunds[0]'
