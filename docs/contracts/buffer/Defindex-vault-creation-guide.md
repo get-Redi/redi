@@ -502,7 +502,7 @@ stellar contract invoke \
 
 ### Step 5: Verify Investment
 
-**View full vault response**
+**Get vault info (full response)**
 
 ```bash
 curl "https://api.defindex.io/vault/$DEFINDEX_VAULT_ADDRESS?network=testnet" \
